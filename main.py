@@ -83,7 +83,7 @@ def preprocess(img):
     return thresh
 
 ## Carga la imagen
-path = r"/home/ernesto/Documents/I_SI/sudoku/img/sudoku.png"
+path = r"/home/ernesto/Documents/I_SI/sudoku/img/sudoku2.jpeg"
 img = cv.imread(path)
 
 ## Preprosesamiento de la imagen
@@ -167,6 +167,18 @@ d = (s-1)/9
 block = []
 m = np.zeros((9,9))
 r = int((s-1)*0.01)
+
+
+def rect_generate(img):
+    copy = img.copy()
+
+    cnt,h = cv.findContours(copy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
+    cnt = cnt[0]
+    x,y,w,h = cv.boundingRect(cnt)
+    # copy = cv.cvtColor(copy, cv.COLOR_GRAY2RGB)
+    # cv.rectangle(copy,(x,y),(x+w,y+h),(0,255,0),2)
+    return x,y,w,h
+
 for i in range(9):
     for j in range(9):
         ## Extrae la ROI para cada digito
@@ -179,6 +191,7 @@ for i in range(9):
      
         var = edge_delete(roi)
 
+
         # plt.subplot(132)
         # plt.imshow(var,'gray')
         h, w = roi.shape
@@ -187,12 +200,21 @@ for i in range(9):
         else:
             # plt.imshow(roi[r*3:h-r*3,r*3:w-r*3],'gray')
             # plt.show()
-            inv = cv.bitwise_not(var.copy(), var.copy())
 
+            x, y, w, h = rect_generate(var)
+            prueba = var[y:y+h,x:x+w]
+            hip = int(math.sqrt(w**2 + h**2))
+            hh = int((hip-h)/2)
+            ww = int((hip-w)/2)
+            mat = np.zeros((hip,hip)).astype('uint8')
+            mat[hh:hh+h, ww:ww+w] = prueba
+            
+            # plt.imshow(mat,'gray')
+            # plt.show()
 
+            inv = cv.bitwise_not(mat.copy(), var.copy())
+        
 
-            print((inv.shape))
-            rect = cv.boundingRect(inv)
             ## Guardar los numeros en la matriz
             scale = (cv.resize(inv, (28,28), interpolation = cv.INTER_AREA))
             norm = scale / 255
@@ -214,7 +236,7 @@ for i in range(9):
             plt.subplot(131)
             plt.imshow(roi,'gray')
             plt.subplot(132)
-            plt.imshow(var,'gray')
+            plt.imshow(mat,'gray')
             plt.title(str(np.sum(norm)))
             plt.subplot(133)
             plt.imshow(norm,'gray')

@@ -1,3 +1,4 @@
 {
-    "python.pythonPath": "~/Documents/I_SI/.venv/bin/python3"
+    "python.pythonPath": "~/Documents/I_SI/.venv/bin/python3",
+    "git.ignoreLimitWarning": true
 }

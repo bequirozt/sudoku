@@ -6,6 +6,54 @@ import math
 from tensorflow.keras.models import model_from_json
 from tensorflow.keras.models import load_model
 
+def find_empty_location(arr,l):
+    for row in range(9):
+        for col in range(9):
+            if(arr[row][col]==0):
+                l[0]=row
+                l[1]=col
+                return True
+    return False
+
+def used_in_row(arr,row,num):
+    for i in range(9):   
+        if(arr[row][i] == num):  
+            return True
+    return False
+
+def used_in_col(arr,col,num):
+    for i in range(9):  
+        if(arr[i][col] == num):  
+            return True
+    return False
+
+def used_in_box(arr,row,col,num):
+    for i in range(3):
+        for j in range(3):
+            if(arr[i+row][j+col] == num):     
+                return True 
+    return False
+
+def check_location_is_safe(arr,row,col,num):
+    return not used_in_row(arr,row,num) and not used_in_col(arr,col,num) and not used_in_box(arr,row - row%3,col - col%3,num)
+    
+def solve_sudoku(arr):
+    l=[0,0]     
+    if(not find_empty_location(arr,l)):
+        return True     
+
+    row=l[0]
+    col=l[1]     
+
+    for num in range(1,10): 
+        if(check_location_is_safe(arr,row,col,num)): 
+            arr[row][col]=num 
+            if(solve_sudoku(arr)): 
+                return True             # failure, unmake & try again 
+            arr[row][col] = 0 
+    
+    return False
+
 def euclidean_distance(a,b):
 
     '''
@@ -196,14 +244,14 @@ for i in range(9):
         # plt.imshow(var,'gray')
         h, w = roi.shape
         if np.sum(roi[r*3:h-r*3,r*3:w-r*3])== 0:
-            m[i,j] = -1
+            m[i,j] = 0
         else:
             # plt.imshow(roi[r*3:h-r*3,r*3:w-r*3],'gray')
             # plt.show()
 
             x, y, w, h = rect_generate(var)
             prueba = var[y:y+h,x:x+w]
-            hip = int(math.sqrt(w**2 + h**2))
+            hip = int(math.sqrt(w**2 + h**2 + 30))
             hh = int((hip-h)/2)
             ww = int((hip-w)/2)
             mat = np.zeros((hip,hip)).astype('uint8')
@@ -233,14 +281,6 @@ for i in range(9):
             # else:
             #     print(rect)
             m[i,j] = CNN.predict(x, verbose = 0).argmax()  
-            plt.subplot(131)
-            plt.imshow(roi,'gray')
-            plt.subplot(132)
-            plt.imshow(mat,'gray')
-            plt.title(str(np.sum(norm)))
-            plt.subplot(133)
-            plt.imshow(norm,'gray')
-            plt.title(str(m[i,j]))
-            plt.show()
 
+solve_sudoku(m)
 print(m)

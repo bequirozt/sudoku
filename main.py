@@ -5,54 +5,58 @@ import imutils
 import math
 from tensorflow.keras.models import model_from_json
 from tensorflow.keras.models import load_model
+import time
+from DFS import DFS
 
-def find_empty_location(arr,l):
-    for row in range(9):
-        for col in range(9):
-            if(arr[row][col]==0):
-                l[0]=row
-                l[1]=col
-                return True
-    return False
+# def find_empty_location(arr,l):
+#     for row in range(9):
+#         for col in range(9):
+#             if(arr[row][col]==0):
+#                 l[0]=row
+#                 l[1]=col
+#                 return True
+#     return False
 
-def used_in_row(arr,row,num):
-    for i in range(9):   
-        if(arr[row][i] == num):  
-            return True
-    return False
+# def used_in_row(arr,row,num):
+#     for i in range(9):   
+#         if(arr[row][i] == num):  
+#             return True
+#     return False
 
-def used_in_col(arr,col,num):
-    for i in range(9):  
-        if(arr[i][col] == num):  
-            return True
-    return False
+# def used_in_col(arr,col,num):
+#     for i in range(9):  
+#         if(arr[i][col] == num):  
+#             return True
+#     return False
 
-def used_in_box(arr,row,col,num):
-    for i in range(3):
-        for j in range(3):
-            if(arr[i+row][j+col] == num):     
-                return True 
-    return False
+# def used_in_box(arr,row,col,num):
+#     for i in range(3):
+#         for j in range(3):
+#             if(arr[i+row][j+col] == num):     
+#                 return True 
+#     return False
 
-def check_location_is_safe(arr,row,col,num):
-    return not used_in_row(arr,row,num) and not used_in_col(arr,col,num) and not used_in_box(arr,row - row%3,col - col%3,num)
+# def check_location_is_safe(arr,row,col,num):
+#     return (not used_in_row(arr,row,num) 
+#             and not used_in_col(arr,col,num) 
+#             and not used_in_box(arr,row - row%3,col - col%3,num))
     
-def solve_sudoku(arr):
-    l=[0,0]     
-    if(not find_empty_location(arr,l)):
-        return True     
+# def solve_sudoku(arr):
+#     l=[0,0]     
+#     if(not find_empty_location(arr,l)):
+#         return True     
 
-    row=l[0]
-    col=l[1]     
+#     row=l[0]
+#     col=l[1]     
 
-    for num in range(1,10): 
-        if(check_location_is_safe(arr,row,col,num)): 
-            arr[row][col]=num 
-            if(solve_sudoku(arr)): 
-                return True             # failure, unmake & try again 
-            arr[row][col] = 0 
+#     for num in range(1,10): 
+#         if(check_location_is_safe(arr,row,col,num)): 
+#             arr[row][col]=num 
+#             if(solve_sudoku(arr)): 
+#                 return True             
+#             arr[row][col] = 0 
     
-    return False
+#     return False
 
 def euclidean_distance(a,b):
 
@@ -131,14 +135,11 @@ def preprocess(img):
     return thresh
 
 ## Carga la imagen
-path = r"/home/ernesto/Documents/I_SI/sudoku/img/sudoku2.jpeg"
+path = r"/home/ernesto/Documents/I_SI/sudoku/img/sudoku.jpeg"
 img = cv.imread(path)
 
 ## Preprosesamiento de la imagen
 th = preprocess(img)
-# plt.figure(1)
-# plt.imshow(th,'gray')
-# plt.show()
 
 ## Encuentra los contornos
 cnts = cv.findContours(th, cv.RETR_EXTERNAL,
@@ -186,22 +187,10 @@ H = cv.getPerspectiveTransform(src,dst)
 trans =  cv.warpPerspective(cv.cvtColor(img,cv.COLOR_BGR2GRAY),
                                         H,(s-1,s-1))
 
-# plt.figure(2)
-# plt.imshow(trans,'gray')
-# plt.show()
-
 blur_var = cv.GaussianBlur(trans,(1,1),0)
-
-# plt.figure(3)
-# plt.imshow(trans,'gray')
-# plt.show()
 
 _,trans = cv.threshold(blur_var,0,255,
                        cv.THRESH_BINARY_INV|cv.THRESH_OTSU)
-
-# plt.figure(4)
-# plt.imshow(trans)
-# plt.show()
 
 # Abrir modelo pre-entrenado
 # json_file = open('CNN.json','r').read()
@@ -212,19 +201,15 @@ CNN = load_model(MODEL_FILE)
 
 ## Separar los 81 bloques
 d = (s-1)/9
-block = []
 m = np.zeros((9,9))
 r = int((s-1)*0.01)
 
-
 def rect_generate(img):
     copy = img.copy()
-
     cnt,h = cv.findContours(copy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
     cnt = cnt[0]
     x,y,w,h = cv.boundingRect(cnt)
-    # copy = cv.cvtColor(copy, cv.COLOR_GRAY2RGB)
-    # cv.rectangle(copy,(x,y),(x+w,y+h),(0,255,0),2)
+
     return x,y,w,h
 
 for i in range(9):
@@ -232,23 +217,13 @@ for i in range(9):
         ## Extrae la ROI para cada digito
         roi = trans[int(i*d)+r:int((i+1)*d)-r,
                     int(j*d)+r:int((j+1)*d-r)]
-        
-        # plt.figure(1)
-        # plt.subplot(131)
-        # plt.imshow(var,'gray')
      
         var = edge_delete(roi)
 
-
-        # plt.subplot(132)
-        # plt.imshow(var,'gray')
         h, w = roi.shape
         if np.sum(roi[r*3:h-r*3,r*3:w-r*3])== 0:
             m[i,j] = 0
         else:
-            # plt.imshow(roi[r*3:h-r*3,r*3:w-r*3],'gray')
-            # plt.show()
-
             x, y, w, h = rect_generate(var)
             prueba = var[y:y+h,x:x+w]
             hip = int(math.sqrt(w**2 + h**2 + 30))
@@ -256,31 +231,24 @@ for i in range(9):
             ww = int((hip-w)/2)
             mat = np.zeros((hip,hip)).astype('uint8')
             mat[hh:hh+h, ww:ww+w] = prueba
-            
-            # plt.imshow(mat,'gray')
-            # plt.show()
 
             inv = cv.bitwise_not(mat.copy(), var.copy())
         
-
             ## Guardar los numeros en la matriz
             scale = (cv.resize(inv, (28,28), interpolation = cv.INTER_AREA))
             norm = scale / 255
-            # scale = cv.threshold(scale, 125, 255, cv.THRESH_BINARY)/255
-        
-            block.append(inv)
-            # kernel = np.ones((2,2),np.uint8)
-            # b = cv.erode(b,kernel,iterations = 1).astype('uint8')
-            # _,b = cv.threshold(b,200,255,cv.THRESH_BINARY)
-
+  
             x = norm.reshape(1,28,28,1).astype('float32')
             
-            ## Identifica el digito
-            # if np.sum(inv) < 0:
-            #     m[i,j] = -1
-            # else:
-            #     print(rect)
             m[i,j] = CNN.predict(x, verbose = 0).argmax()  
 
-solve_sudoku(m)
-print(m)
+start = time.time()
+
+dfs = DFS(m)
+
+dfs.solve_sudoku(m)
+
+end = time.time()
+
+print(end-start)
+

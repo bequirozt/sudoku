@@ -103,6 +103,72 @@ def rect_generate(img):
 
     return x,y,w,h
 
+
+def perspective_change(th):
+
+    '''
+        Transforma la imagen tomando los marcos del sudoku 
+
+        parametros:
+            th --> imagen para transformar
+
+        retorno:
+            s --> dimensiones de la imagen
+            trans --> imagen transformada y recortada
+    '''
+
+    ## Encuentra los contornos
+    cnts = cv.findContours(th, cv.RETR_EXTERNAL,
+        cv.CHAIN_APPROX_SIMPLE)
+    cnts = imutils.grab_contours(cnts)
+    cnts = sorted(cnts, key=cv.contourArea, reverse=True)
+
+    points = None
+
+    ## Extrae los 4 puntos del marco del sudoku
+    for c in cnts:
+        peri = cv.arcLength(c, True)
+        approx = cv.approxPolyDP(c, 0.02 * peri, True)
+        if len(approx) == 4:
+            points = approx
+            break
+
+    ## Calculo del borde mas largo
+    bl, tl, tr, br = points.reshape((4,2))
+
+    ## Calculo de la distancia euclidiana mayor
+    s = int(max(euclidean_distance(bl,tl),
+                euclidean_distance(tl,tr),
+                euclidean_distance(tr,br),
+                euclidean_distance(br,bl)))
+
+    a = points.reshape((4,2))
+
+    order = a[a[:,0].argsort()]
+
+    ## Organiza los puntos de la imagen
+    first = order[:2,:]
+    last = order[2:,:]
+    first = first[first[:,1].argsort()]
+    last = last[last[:,1].argsort()]
+    bl = first[0]
+    tl = first[1]
+    tr = last[0]
+    br = last[1]
+
+    ## Se obtiene los puntos para la homografía
+    src = np.float32([bl,tl,tr,br])
+    dst = np.float32([[0,0],[0,s-1],[s-1,0],[s-1,s-1]])
+
+    ## Calculo de la homografía
+    H = cv.getPerspectiveTransform(src,dst)
+
+    ## Transformación de perspectiva
+    trans =  cv.warpPerspective(cv.cvtColor(img,cv.COLOR_BGR2HSV)[:,:,2],
+                                            H,(s-1,s-1))
+
+    return s, trans
+
 ## Carga la imagen
 path = r"/home/ernesto/Documents/I_SI/sudoku/img/sudoku2.png"
 img = cv.imread(path)
@@ -110,60 +176,13 @@ img = cv.imread(path)
 ## Preprosesamiento de la imagen
 th = preprocess(img)
 
-## Encuentra los contornos
-cnts = cv.findContours(th, cv.RETR_EXTERNAL,
-    cv.CHAIN_APPROX_SIMPLE)
-cnts = imutils.grab_contours(cnts)
-cnts = sorted(cnts, key=cv.contourArea, reverse=True)
-
-points = None
-
-for c in cnts:
-    peri = cv.arcLength(c, True)
-    approx = cv.approxPolyDP(c, 0.02 * peri, True)
-    if len(approx) == 4:
-        points = approx
-        break
-
-## Calculo del borde mas largo
-bl, tl, tr, br = points.reshape((4,2))
-s = int(max(euclidean_distance(bl,tl),
-        euclidean_distance(tl,tr),
-        euclidean_distance(tr,br),
-        euclidean_distance(br,bl)))
-
-a = points.reshape((4,2))
-
-order = a[a[:,0].argsort()]
-
-first = order[:2,:]
-last = order[2:,:]
-first = first[first[:,1].argsort()]
-last = last[last[:,1].argsort()]
-bl = first[0]
-tl = first[1]
-tr = last[0]
-br = last[1]
-
-## Se obtiene los puntos para la homografía
-src = np.float32([bl,tl,tr,br])
-dst = np.float32([[0,0],[0,s-1],[s-1,0],[s-1,s-1]])
-
-## Calculo de la homografía
-H = cv.getPerspectiveTransform(src,dst)
-
-## Transformación de perspectiva
-trans =  cv.warpPerspective(cv.cvtColor(img,cv.COLOR_BGR2HSV)[:,:,2],
-                                        H,(s-1,s-1))
-
-plt.imshow(trans,'gray');plt.show()
+## Cambia la perspectiva y la recorta en la zona de interes
+s, trans = perspective_change(th)
 
 blur_var = cv.GaussianBlur(trans,(1,1),0)
 
-_,trans = cv.threshold(blur_var,0,255,
+_,trans = cv.threshold(trans,0,255,
                        cv.THRESH_BINARY_INV|cv.THRESH_OTSU)
-
-plt.imshow(trans,'gray');plt.show()
 
 # Abrir modelo pre-entrenado
 # json_file = open('CNN.json','r').read()
@@ -172,7 +191,7 @@ plt.imshow(trans,'gray');plt.show()
 MODEL_FILE = 'model-classifier.h5'
 CNN = load_model(MODEL_FILE)
 
-## Separar los 81 bloques
+## Separa los 81 bloques
 d = (s-1)/9
 m = np.zeros((9,9))
 r = int((s-1)*0.01)

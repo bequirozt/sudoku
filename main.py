@@ -8,87 +8,37 @@ from tensorflow.keras.models import load_model
 import time
 from DFS import DFS
 
-# def find_empty_location(arr,l):
-#     for row in range(9):
-#         for col in range(9):
-#             if(arr[row][col]==0):
-#                 l[0]=row
-#                 l[1]=col
-#                 return True
-#     return False
-
-# def used_in_row(arr,row,num):
-#     for i in range(9):   
-#         if(arr[row][i] == num):  
-#             return True
-#     return False
-
-# def used_in_col(arr,col,num):
-#     for i in range(9):  
-#         if(arr[i][col] == num):  
-#             return True
-#     return False
-
-# def used_in_box(arr,row,col,num):
-#     for i in range(3):
-#         for j in range(3):
-#             if(arr[i+row][j+col] == num):     
-#                 return True 
-#     return False
-
-# def check_location_is_safe(arr,row,col,num):
-#     return (not used_in_row(arr,row,num) 
-#             and not used_in_col(arr,col,num) 
-#             and not used_in_box(arr,row - row%3,col - col%3,num))
-    
-# def solve_sudoku(arr):
-#     l=[0,0]     
-#     if(not find_empty_location(arr,l)):
-#         return True     
-
-#     row=l[0]
-#     col=l[1]     
-
-#     for num in range(1,10): 
-#         if(check_location_is_safe(arr,row,col,num)): 
-#             arr[row][col]=num 
-#             if(solve_sudoku(arr)): 
-#                 return True             
-#             arr[row][col] = 0 
-    
-#     return False
-
 def euclidean_distance(a,b):
 
     '''
+        Calcula la distancia euclideana entre dos puntos
+
         parametros: 
             a, b --> puntos a los que se quiere hallar la distancia
         
         retorno:
             devuelve la distancia euclidena que separa a y b
-
     '''
+    
     return math.sqrt((a[1]-b[1])**2 + (a[0]-b[0])**2)
 
 def edge_delete(th):
 
     '''
+        Elimina los marcos externos de un recuadro
+
         parametros:
             th -- > imagen binaria 
 
         retorno:
             digit --> imagen sin marcos 
-
     '''
 
-    # th = cv.bitwise_not(th, th)
     cnts = cv.findContours(th.copy(),
                            cv.RETR_EXTERNAL,
                            cv.CHAIN_APPROX_SIMPLE)
     cnts = imutils.grab_contours(cnts)
-
     h, w = th.shape
-
     digit = np.zeros((h,w))
 
     if len(cnts) == 0:
@@ -97,7 +47,6 @@ def edge_delete(th):
     c = max(cnts, key=cv.contourArea)
     mask = np.zeros(th.shape, dtype='uint8')
     cv.drawContours(mask, [c], -1, 255 , -1)
-
     
     error = cv.countNonZero(mask) / float(w*h)
 
@@ -106,23 +55,22 @@ def edge_delete(th):
 
     digit = cv.bitwise_and(th, th, mask = mask)
 
-    # digit = cv.bitwise_not(digit, digit)
-
     return digit
 
 def preprocess(img):
 
     '''
+        Hace el preprocesamiento de la imagen
+
         parametros:
             img --> imagen a color a procesar
         
         retorno:
             thresh --> imagen filtrada en blanco y negro
-
     '''
 
-    ## Transforma la imagen a escala de grises
-    gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
+    ## Extrae el canal V del espacio HSV
+    gray = cv.cvtColor(img,cv.COLOR_BGR2HSV)[:,:,2]
 
     ## Filtro blur para reducir el ruido
     blur = cv.GaussianBlur(gray, (11,11), 0)
@@ -134,8 +82,29 @@ def preprocess(img):
 
     return thresh
 
+def rect_generate(img):
+
+    '''
+        Saca los 4 puntos externos del tablero de sudoku
+
+        parametros:
+            img --> imagen de un digito
+        
+        retorno:
+            x,y,w,h --> puntos extremos del sudoku
+    '''
+
+    copy = img.copy()
+    cnt,h = cv.findContours(copy,
+                            cv.RETR_EXTERNAL, 
+                            cv.CHAIN_APPROX_SIMPLE)
+    cnt = cnt[0]
+    x,y,w,h = cv.boundingRect(cnt)
+
+    return x,y,w,h
+
 ## Carga la imagen
-path = r"/home/ernesto/Documents/I_SI/sudoku/img/sudoku.jpeg"
+path = r"/home/ernesto/Documents/I_SI/sudoku/img/sudoku2.png"
 img = cv.imread(path)
 
 ## Preprosesamiento de la imagen
@@ -184,13 +153,17 @@ dst = np.float32([[0,0],[0,s-1],[s-1,0],[s-1,s-1]])
 H = cv.getPerspectiveTransform(src,dst)
 
 ## Transformación de perspectiva
-trans =  cv.warpPerspective(cv.cvtColor(img,cv.COLOR_BGR2GRAY),
+trans =  cv.warpPerspective(cv.cvtColor(img,cv.COLOR_BGR2HSV)[:,:,2],
                                         H,(s-1,s-1))
+
+plt.imshow(trans,'gray');plt.show()
 
 blur_var = cv.GaussianBlur(trans,(1,1),0)
 
 _,trans = cv.threshold(blur_var,0,255,
                        cv.THRESH_BINARY_INV|cv.THRESH_OTSU)
+
+plt.imshow(trans,'gray');plt.show()
 
 # Abrir modelo pre-entrenado
 # json_file = open('CNN.json','r').read()
@@ -203,14 +176,6 @@ CNN = load_model(MODEL_FILE)
 d = (s-1)/9
 m = np.zeros((9,9))
 r = int((s-1)*0.01)
-
-def rect_generate(img):
-    copy = img.copy()
-    cnt,h = cv.findContours(copy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
-    cnt = cnt[0]
-    x,y,w,h = cv.boundingRect(cnt)
-
-    return x,y,w,h
 
 for i in range(9):
     for j in range(9):
@@ -231,24 +196,14 @@ for i in range(9):
             ww = int((hip-w)/2)
             mat = np.zeros((hip,hip)).astype('uint8')
             mat[hh:hh+h, ww:ww+w] = prueba
-
             inv = cv.bitwise_not(mat.copy(), var.copy())
         
             ## Guardar los numeros en la matriz
             scale = (cv.resize(inv, (28,28), interpolation = cv.INTER_AREA))
             norm = scale / 255
-  
             x = norm.reshape(1,28,28,1).astype('float32')
-            
             m[i,j] = CNN.predict(x, verbose = 0).argmax()  
 
-start = time.time()
-
 dfs = DFS(m)
-
 dfs.solve_sudoku(m)
-
-end = time.time()
-
-print(end-start)
-
+print(m)

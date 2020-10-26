@@ -43,16 +43,16 @@ class DFS():
                 and not self.used_in_box(arr,row-row%3,col-col%3,num))
         
     ## Resuelve el sudoku
-    def solve_sudoku(self,arr):
+    def solve_sudoku(self):
         l=[0,0]     
-        if(not self.find_empty_location(arr,l)):
+        if(not self.find_empty_location(self.arr,l)):
             return True     
         row=l[0]
         col=l[1]     
         for num in range(1,10): 
-            if(self.check_location_is_safe(arr,row,col,num)): 
-                arr[row,col] = num
-                if(self.solve_sudoku(arr)): 
+            if(self.check_location_is_safe(self.arr,row,col,num)): 
+                self.arr[row,col] = num
+                if(self.solve_sudoku()): 
                     return True
-                arr[row,col] = 0 
+                self.arr[row,col] = 0 
         return False

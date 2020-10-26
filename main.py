@@ -169,60 +169,109 @@ def perspective_change(th):
 
     return s, trans
 
-## Carga la imagen
-path = r"/home/ernesto/Documents/I_SI/sudoku/img/sudoku2.png"
-img = cv.imread(path)
+def fill_image(m,k, num_array, img):
 
-## Preprosesamiento de la imagen
-th = preprocess(img)
+    '''
+        Rellena los espacios del sudoku con los numeros que resuelven el sudoku
 
-## Cambia la perspectiva y la recorta en la zona de interes
-s, trans = perspective_change(th)
+        parametros:
+            m --> matriz con el sudoku resuelto
+            k --> matriz con el sudoku sin resolver
+            num_array --> lista de numeros para pintar sobre la imagen
+            img --> imagen del sudoku
 
-blur_var = cv.GaussianBlur(trans,(1,1),0)
+        retorno:
+            output --> imagen con los numeros superpuestos
+    '''
 
-_,trans = cv.threshold(trans,0,255,
-                       cv.THRESH_BINARY_INV|cv.THRESH_OTSU)
+    for i in range(9):
+        for j in range(9):
+            if k[i,j] == 0:
+                predict = int(m[i,j])
+                img[int(i*d):int((i+1)*d),
+                    int(j*d):int((j+1)*d)] = num_array[predict-1]
+    output = img
+    return output
 
-# Abrir modelo pre-entrenado
-# json_file = open('CNN.json','r').read()
-# CNN = model_from_json(json_file)
-# CNN.load_weights('model.h5')
-MODEL_FILE = 'model-classifier.h5'
-CNN = load_model(MODEL_FILE)
+##-----------------------------------------------------------------------------------------------##
+##---------------------------------Inicio del programa-------------------------------------------##
+##-----------------------------------------------------------------------------------------------##
 
-## Separa los 81 bloques
-d = (s-1)/9
-m = np.zeros((9,9))
-r = int((s-1)*0.01)
+if __name__ == "__main__":
 
-for i in range(9):
-    for j in range(9):
-        ## Extrae la ROI para cada digito
-        roi = trans[int(i*d)+r:int((i+1)*d)-r,
-                    int(j*d)+r:int((j+1)*d-r)]
-     
-        var = edge_delete(roi)
+    ## Carga la imagen
+    path = r"/home/ernesto/Documents/I_SI/sudoku/img/sudoku2.png"
+    img = cv.imread(path)
 
-        h, w = roi.shape
-        if np.sum(roi[r*3:h-r*3,r*3:w-r*3])== 0:
-            m[i,j] = 0
-        else:
-            x, y, w, h = rect_generate(var)
-            prueba = var[y:y+h,x:x+w]
-            hip = int(math.sqrt(w**2 + h**2 + 30))
-            hh = int((hip-h)/2)
-            ww = int((hip-w)/2)
-            mat = np.zeros((hip,hip)).astype('uint8')
-            mat[hh:hh+h, ww:ww+w] = prueba
-            inv = cv.bitwise_not(mat.copy(), var.copy())
-        
-            ## Guardar los numeros en la matriz
-            scale = (cv.resize(inv, (28,28), interpolation = cv.INTER_AREA))
-            norm = scale / 255
-            x = norm.reshape(1,28,28,1).astype('float32')
-            m[i,j] = CNN.predict(x, verbose = 0).argmax()  
+    ## Preprosesamiento de la imagen
+    th = preprocess(img)
 
-dfs = DFS(m)
-dfs.solve_sudoku(m)
-print(m)
+    ## Cambia la perspectiva y la recorta en la zona de interes
+    s, trans = perspective_change(th)
+
+    blur_var = cv.GaussianBlur(trans,(1,1),0)
+
+    _,otsu = cv.threshold(trans,0,255,
+                        cv.THRESH_BINARY_INV|cv.THRESH_OTSU)
+
+    # Abrir modelo pre-entrenado
+    # json_file = open('CNN.json','r').read()
+    # CNN = model_from_json(json_file)
+    # CNN.load_weights('model.h5')
+    MODEL_FILE = 'model-classifier.h5'
+    CNN = load_model(MODEL_FILE)
+
+    ## Separa los 81 bloques
+    d = int((s-1)/9)
+    m = np.zeros((9,9))
+    r = int((s-1)*0.01)
+
+    ## Carga los digitos del 1 al 9
+    num_array = []
+    for n in range(0,9): 
+        digit = cv.imread('nums/' + str(n+1) + '.png',0)
+        # plt.imshow(digit)
+        # plt.show()
+        num_array.append(cv.resize(digit,(int(d),int(d))))
+
+    ## Itera sobre cada bloque del sudoku
+    for i in range(9):
+        for j in range(9):
+            ## Extrae la ROI para cada digito
+            roi = otsu[int(i*d)+r:int((i+1)*d)-r,
+                        int(j*d)+r:int((j+1)*d-r)]
+
+            ## Elimina los bordes de la imagen
+            roi = edge_delete(roi)
+            h, w = roi.shape
+            if np.sum(roi[r*3:h-r*3,r*3:w-r*3]) == 0:
+                m[i,j] = 0
+            else:
+
+                x, y, w, h = rect_generate(roi)
+                digit_cut = roi[y:y+h,x:x+w]
+                hip = int(math.sqrt(w**2 + h**2 + 30))
+                hh = int((hip-h)/2)
+                ww = int((hip-w)/2)
+                mat = np.zeros((hip,hip)).astype('uint8')
+                mat[hh:hh+h, ww:ww+w] = digit_cut
+                inv = cv.bitwise_not(mat.copy(), roi.copy())
+            
+                ## Guardar los numeros en la matriz
+                scale = (cv.resize(inv, (28,28),
+                                   interpolation = cv.INTER_AREA))
+                norm = scale / 255
+                x = norm.reshape(1,28,28,1).astype('float32')
+                m[i,j] = CNN.predict(x, verbose = 0).argmax() 
+                
+    output = trans.copy()
+    k = m.copy()
+
+    dfs = DFS(m)
+    dfs.solve_sudoku()
+
+    output = fill_image(m,k,num_array,output)
+    result = cv.addWeighted(trans,0.7,output,0.2,0)
+
+    plt.imshow(result,'gray')
+    plt.show()

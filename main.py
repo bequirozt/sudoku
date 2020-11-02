@@ -3,7 +3,8 @@ import cv2 as cv
 import matplotlib.pyplot as plt
 import imutils
 import math
-from tensorflow.keras.models import model_from_json
+import pyautogui
+# from tensorflow.keras.models import model_from_json
 from tensorflow.keras.models import load_model
 import time
 from DFS import DFS
@@ -95,7 +96,7 @@ def rect_generate(img):
     '''
 
     copy = img.copy()
-    cnt,h = cv.findContours(copy,
+    _,cnt,h = cv.findContours(copy,
                             cv.RETR_EXTERNAL, 
                             cv.CHAIN_APPROX_SIMPLE)
     cnt = cnt[0]
@@ -200,9 +201,12 @@ def fill_image(m,k, num_array, img):
 if __name__ == "__main__":
 
     ## Carga la imagen
-    path = r"/home/ernesto/Documents/I_SI/sudoku/img/sudoku2.png"
-    img = cv.imread(path)
+    # path = r"img/sudoku.png"
+    # img = cv.imread(path)
+    img = np.array(pyautogui.screenshot())
 
+    plt.imshow(img)
+    plt.show()
     ## Preprosesamiento de la imagen
     th = preprocess(img)
 
@@ -213,6 +217,9 @@ if __name__ == "__main__":
 
     _,otsu = cv.threshold(trans,0,255,
                         cv.THRESH_BINARY_INV|cv.THRESH_OTSU)
+
+    plt.imshow(otsu,'gray')
+    plt.show()
 
     # Abrir modelo pre-entrenado
     # json_file = open('CNN.json','r').read()

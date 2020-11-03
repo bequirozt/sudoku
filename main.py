@@ -5,6 +5,7 @@ import imutils
 import math
 import pyautogui
 # from tensorflow.keras.models import model_from_json
+# import tensorflow.keras.models.load_model
 from tensorflow.keras.models import load_model
 import time
 from DFS import DFS
@@ -96,7 +97,7 @@ def rect_generate(img):
     '''
 
     copy = img.copy()
-    _,cnt,h = cv.findContours(copy,
+    cnt,h = cv.findContours(copy,
                             cv.RETR_EXTERNAL, 
                             cv.CHAIN_APPROX_SIMPLE)
     cnt = cnt[0]
@@ -205,8 +206,6 @@ if __name__ == "__main__":
     # img = cv.imread(path)
     img = np.array(pyautogui.screenshot())
 
-    plt.imshow(img)
-    plt.show()
     ## Preprosesamiento de la imagen
     th = preprocess(img)
 
@@ -218,8 +217,6 @@ if __name__ == "__main__":
     _,otsu = cv.threshold(trans,0,255,
                         cv.THRESH_BINARY_INV|cv.THRESH_OTSU)
 
-    plt.imshow(otsu,'gray')
-    plt.show()
 
     # Abrir modelo pre-entrenado
     # json_file = open('CNN.json','r').read()
@@ -273,6 +270,9 @@ if __name__ == "__main__":
                 
     output = trans.copy()
     k = m.copy()
+
+    plt.imshow(trans,'gray')
+    plt.show()
 
     dfs = DFS(m)
     dfs.solve_sudoku()
